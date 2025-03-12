@@ -3,6 +3,8 @@
 import React from 'react';
 import { ArrowRight, Clock, Zap, MessageSquare } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { getAuth } from 'firebase/auth';
 
 // Define types for our data structures
 interface Task {
@@ -28,6 +30,14 @@ interface ChatHistory {
 
 const Dashboard: React.FC<{}> = () => {
   const router = useRouter();
+  const auth = getAuth();
+  const [user, loading, error] = useAuthState(auth);
+
+  React.useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
 
   // Sample data with proper typing
   const topTasks: Task[] = [
