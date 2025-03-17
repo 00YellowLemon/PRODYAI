@@ -1,21 +1,32 @@
-import React, { useState } from 'react';
-import { useRouter } from 'next/router';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+"use client";
+
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const LoginPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const router = useRouter();
   const auth = getAuth();
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      const redirectTo = router.query.redirect || '/dashboard';
-      router.push(redirectTo);
-    } catch (error) {
+      router.push("/");
+    } catch (error: any) {
+      setError(error.message);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      router.push("/");
+    } catch (error: any) {
       setError(error.message);
     }
   };
@@ -61,26 +72,6 @@ const LoginPage = () => {
           
           {error && <p className="text-red-500 text-sm">{error}</p>}
           
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                Remember me
-              </label>
-            </div>
-            
-            <div className="text-sm">
-              <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                Forgot password?
-              </a>
-            </div>
-          </div>
-          
           <button
             type="submit"
             className="w-full flex justify-center items-center gap-3 rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-offset-0"
@@ -99,6 +90,7 @@ const LoginPage = () => {
           
           <button
             type="button"
+            onClick={handleGoogleSignIn}
             className="flex w-full justify-center items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-offset-0"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -125,7 +117,7 @@ const LoginPage = () => {
         </form>
         
         <p className="mt-8 text-center text-sm text-gray-500">
-          Don't have an account?{' '}
+          Don't have an account?{" "}
           <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
             Sign up
           </a>
