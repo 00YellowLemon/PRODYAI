@@ -1,7 +1,9 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, GripVertical, XCircle, MoveVertical } from 'lucide-react';
+import { createTask, readTasks, updateTask, deleteTask } from '../../lib/tasks_firestore';
+import { useAuth } from '../../components/authcontext';
 
 interface Task {
   id: string;
@@ -90,6 +92,26 @@ const TaskManagementPage: React.FC = () => {
   });
   const [draggedItem, setDraggedItem] = useState<Task | null>(null);
   const [dragSourceList, setDragSourceList] = useState<ListId | null>(null);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      fetchTasks();
+    }
+  }, [user]);
+
+  const fetchTasks = async () => {
+    if (!user) return;
+    const tasks = await readTasks(user.uid);
+    const formattedTasks: TaskLists = {
+      longTermGoals: tasks.filter(task => task.listId === 'longTermGoals'),
+      highUrgentHighImportant: tasks.filter(task => task.listId === 'highUrgentHighImportant'),
+      highImportantLowUrgent: tasks.filter(task => task.listId === 'highImportantLowUrgent'),
+      highUrgentLowImportant: tasks.filter(task => task.listId === 'highUrgentLowImportant'),
+      lowUrgentLowImportant: tasks.filter(task => task.listId === 'lowUrgentLowImportant'),
+    };
+    setData(formattedTasks);
+  };
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: Task, listId: ListId): void => {
     setDraggedItem(item);
@@ -141,17 +163,19 @@ const TaskManagementPage: React.FC = () => {
     setDragSourceList(null);
   };
 
-  const addNewTask = (listId: ListId): void => {
-    if (!newTaskContents[listId].trim()) return;
+  const addNewTask = async (listId: ListId): Promise<void> => {
+    if (!newTaskContents[listId].trim() || !user) return;
     
     const newTask: Task = {
       id: `task-${Date.now()}`,
       content: newTaskContents[listId]
     };
 
+    const taskId = await createTask(user.uid, newTask.content, '', false, false);
+
     setData(prev => ({
       ...prev,
-      [listId]: [...prev[listId], newTask]
+      [listId]: [...prev[listId], { ...newTask, id: taskId }]
     }));
 
     setNewTaskContents(prev => ({
@@ -165,7 +189,9 @@ const TaskManagementPage: React.FC = () => {
     }));
   };
 
-  const removeTask = (listId: ListId, taskId: string): void => {
+  const removeTask = async (listId: ListId, taskId: string): Promise<void> => {
+    if (!user) return;
+    await deleteTask(user.uid, taskId);
     setData(prev => ({
       ...prev,
       [listId]: prev[listId].filter(task => task.id !== taskId)
