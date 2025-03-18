@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, GripVertical, XCircle, MoveVertical } from 'lucide-react';
-import { createTask, readTasks, updateTask, deleteTask } from '../../lib/tasks_firestore';
+import { createTask, readTasks, updateTask, deleteTask, createLongTermGoalTask, readLongTermGoalsTask, deleteLongTermGoalTask } from '../../lib/tasks_firestore';
 import { useAuth } from '../../components/authcontext';
 
 interface Task {
@@ -37,7 +37,7 @@ interface ShowInputsState {
 interface ColorScheme {
   border: string;
   bg: string;
-  hover: string;
+ hover: string;
   light: string;
 }
 
@@ -103,8 +103,9 @@ const TaskManagementPage: React.FC = () => {
   const fetchTasks = async () => {
     if (!user) return;
     const tasks = await readTasks(user.uid);
+    const longTermGoals = await readLongTermGoalsTask(user.uid);
     const formattedTasks: TaskLists = {
-      longTermGoals: tasks.filter(task => task.listId === 'longTermGoals'),
+      longTermGoals: longTermGoals.map(goal => ({ id: goal.id, content: goal.title })),
       highUrgentHighImportant: tasks.filter(task => task.listId === 'highUrgentHighImportant'),
       highImportantLowUrgent: tasks.filter(task => task.listId === 'highImportantLowUrgent'),
       highUrgentLowImportant: tasks.filter(task => task.listId === 'highUrgentLowImportant'),
@@ -171,7 +172,12 @@ const TaskManagementPage: React.FC = () => {
       content: newTaskContents[listId]
     };
 
-    const taskId = await createTask(user.uid, newTask.content, '', false, false);
+    let taskId;
+    if (listId === 'longTermGoals') {
+      taskId = await createLongTermGoalTask(user.uid, newTask.content, new Date(), new Date(), 0, []);
+    } else {
+      taskId = await createTask(user.uid, newTask.content, '', false, false);
+    }
 
     setData(prev => ({
       ...prev,
@@ -191,7 +197,11 @@ const TaskManagementPage: React.FC = () => {
 
   const removeTask = async (listId: ListId, taskId: string): Promise<void> => {
     if (!user) return;
-    await deleteTask(user.uid, taskId);
+    if (listId === 'longTermGoals') {
+      await deleteLongTermGoalTask(user.uid, taskId);
+    } else {
+      await deleteTask(user.uid, taskId);
+    }
     setData(prev => ({
       ...prev,
       [listId]: prev[listId].filter(task => task.id !== taskId)
