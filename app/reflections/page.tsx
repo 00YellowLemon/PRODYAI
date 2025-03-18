@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Pin, Trash2, Plus, ArrowRight, Check, MessageSquare } from 'lucide-react';
-
+import { createReflection, readReflections, deleteReflection } from '../../lib/reflections_firestore'; // Pb1d4
 
 interface Reflection {
-  id: number;
+  id: string;
   title: string;
   summary: string;
   date: Date;
@@ -14,14 +14,14 @@ interface Reflection {
 
 const sampleReflections = [
   {
-    id: 1,
+    id: '1',
     title: "Found clarity in morning meditation routine",
     summary: "Discovered that 15-minute morning meditation significantly improves my focus throughout the day. Will continue this practice.",
     date: new Date(2025, 2, 9),
     pinned: true,
   },
   {
-    id: 2,
+    id: '2',
     title: "Weekly planning reduces daily anxiety",
     summary: "Setting aside 30 minutes on Sunday to plan the week ahead has reduced my daily anxiety and improved productivity.",
     date: new Date(2025, 2, 8),
@@ -78,15 +78,16 @@ const ReflectionsPage: React.FC = () => {
   
   const pinnedReflections: Reflection[] = reflections.filter((reflection: Reflection) => reflection.pinned);
 
-  const deleteReflection = (id: number, e: React.MouseEvent<HTMLButtonElement>) => { //fix
+  const deleteReflectionHandler = async (id: string, e: React.MouseEvent<HTMLButtonElement>) => { // Pe218
     e?.stopPropagation();
+    await deleteReflection('userId', id); // Replace 'userId' with actual user ID
     setReflections(reflections.filter((reflection: Reflection) => reflection.id !== id));
     if (selectedReflection && selectedReflection.id === id) {
       setIsModalOpen(false);
     }
   }; 
 
-  const togglePin = (id: number, e: React.MouseEvent<HTMLButtonElement>) => { //fix
+  const togglePin = (id: string, e: React.MouseEvent<HTMLButtonElement>) => { //fix
     e.stopPropagation();
     setReflections(reflections.map((reflection: Reflection) => 
       reflection.id === id ? {...reflection, pinned: !reflection.pinned} : reflection
@@ -144,14 +145,16 @@ const ReflectionsPage: React.FC = () => {
     }
   };
 
-  const saveReflection = () => {
+  const saveReflection = async () => { // Pc233
     const newReflection = {
-      id: Date.now(),
+      id: Date.now().toString(),
       title: reflectionTitle,
       summary: reflectionSummary || Object.values(answers).join(' '),
       date: new Date(),
       pinned: false
     };
+    
+    await createReflection('userId', newReflection.title, newReflection.summary, '', []); // Replace 'userId' with actual user ID
     
     setReflections([newReflection, ...reflections]);
     
@@ -194,6 +197,18 @@ const ReflectionsPage: React.FC = () => {
     return insights.length > 0 ? insights : ["Reflecting regularly helps build self-awareness"];
   };
 
+  useEffect(() => { // P127e
+    const fetchReflections = async () => {
+      const reflectionsList = await readReflections('userId'); // Replace 'userId' with actual user ID
+      setReflections(reflectionsList.map(reflection => ({
+        ...reflection,
+        date: reflection.createdAt.toDate()
+      })));
+    };
+
+    fetchReflections();
+  }, []);
+
   return (
     <div className="bg-white min-h-screen">
       <div className="bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
@@ -229,7 +244,7 @@ const ReflectionsPage: React.FC = () => {
                       <Pin size={16} className="fill-blue-500" />
                     </button>
                     <button
-                      onClick={(e) => deleteReflection(reflection.id, e)}
+                      onClick={(e) => deleteReflectionHandler(reflection.id, e)}
                       className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
                     >
                       <Trash2 size={16} />
@@ -268,7 +283,7 @@ const ReflectionsPage: React.FC = () => {
                       <Pin size={16} />
                     </button>
                     <button
-                      onClick={(e) => deleteReflection(reflection.id, e)}
+                      onClick={(e) => deleteReflectionHandler(reflection.id, e)}
                       className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
                     >
                       <Trash2 size={16} />
@@ -305,7 +320,7 @@ const ReflectionsPage: React.FC = () => {
                       <Pin size={16} />
                     </button>
                     <button
-                      onClick={(e) => deleteReflection(reflection.id, e)}
+                      onClick={(e) => deleteReflectionHandler(reflection.id, e)}
                       className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
                     >
                       <Trash2 size={16} />
@@ -342,7 +357,7 @@ const ReflectionsPage: React.FC = () => {
                       <Pin size={16} />
                     </button>
                     <button
-                      onClick={(e) => deleteReflection(reflection.id, e)}
+                      onClick={(e) => deleteReflectionHandler(reflection.id, e)}
                       className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
                     >
                       <Trash2 size={16} />
@@ -380,7 +395,7 @@ const ReflectionsPage: React.FC = () => {
                   {selectedReflection.pinned ? 'Unpin' : 'Pin'}
                 </button>
                 <button
-                  onClick={(e) => deleteReflection(selectedReflection.id, e)}
+                  onClick={(e) => deleteReflectionHandler(selectedReflection.id, e)}
                   className="flex items-center px-4 py-2 rounded-full bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition-colors"
                 >
                   <Trash2 size={16} className="mr-1" />
