@@ -1,4 +1,5 @@
 import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, Timestamp } from "firebase/firestore";
+import { createReflectionQuestion, readReflectionQuestions, updateReflectionQuestion, deleteReflectionQuestion } from "./reflectionQuestions_firestore";
 
 // Initialize Firestore
 const db = getFirestore();
@@ -30,3 +31,5 @@ export const deleteReflection = async (userId: string, reflectionId: string) => 
   const reflectionRef = doc(db, `users/${userId}/reflections`, reflectionId);
   await deleteDoc(reflectionRef);
 };
+
+export { createReflectionQuestion, readReflectionQuestions, updateReflectionQuestion, deleteReflectionQuestion };
