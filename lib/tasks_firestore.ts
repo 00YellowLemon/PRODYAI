@@ -19,6 +19,7 @@ export const createTask = async (userId: string, title: string, description: str
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   };
+  console.log("Saving task to Firestore:", taskData);
   await setDoc(taskRef, taskData);
   return taskRef.id;
 };
@@ -32,6 +33,7 @@ export const createLongTermGoalTask = async (userId: string, title: string, star
 export const readTasks = async (userId: string) => {
   const tasksSnapshot = await getDocs(collection(db, `users/${userId}/tasks`));
   const tasksList = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  console.log("Retrieved tasks from Firestore:", tasksList);
   return tasksList;
 };
 
@@ -57,6 +59,7 @@ export const updateLongTermGoalTask = async (userId: string, goalId: string, upd
 // Function to delete a task
 export const deleteTask = async (userId: string, taskId: string) => {
   const taskRef = doc(db, `users/${userId}/tasks`, taskId);
+  console.log("Deleting task from Firestore:", taskId);
   await deleteDoc(taskRef);
 };
 

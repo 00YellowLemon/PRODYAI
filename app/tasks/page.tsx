@@ -103,6 +103,7 @@ const TaskManagementPage: React.FC = () => {
   const fetchTasks = async () => {
     if (!user) return;
     const tasks = await readTasks(user.uid);
+    console.log("Fetched tasks:", tasks);
     const longTermGoals = await readLongTermGoalsTask(user.uid);
     const formattedTasks: TaskLists = {
       longTermGoals: longTermGoals.map(goal => ({ id: goal.id, content: goal.title })),
@@ -179,6 +180,8 @@ const TaskManagementPage: React.FC = () => {
       taskId = await createTask(user.uid, newTask.content, '', false, false);
     }
 
+    console.log("Adding new task:", newTask);
+
     setData(prev => ({
       ...prev,
       [listId]: [...prev[listId], { ...newTask, id: taskId }]
@@ -202,6 +205,7 @@ const TaskManagementPage: React.FC = () => {
     } else {
       await deleteTask(user.uid, taskId);
     }
+    console.log("Removing task with ID:", taskId);
     setData(prev => ({
       ...prev,
       [listId]: prev[listId].filter(task => task.id !== taskId)
