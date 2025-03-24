@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Pin, Trash2, Plus, ArrowRight, Check, MessageSquare } from 'lucide-react';
-import { createReflection, readReflections, deleteReflection } from '../../lib/reflections_firestore'; // Pb1d4
+import { createReflection, readReflections, deleteReflection } from '../../lib/reflections_firestore';
+import { createReflectionQuestion, readReflectionQuestions, deleteReflectionQuestion } from '../../lib/reflectionQuestions_firestore';
 
 interface Reflection {
   id: string;
@@ -10,6 +11,11 @@ interface Reflection {
   summary: string;
   date: Date;
   pinned: boolean;
+}
+
+interface ReflectionQuestion {
+  id: string;
+  question: string;
 }
 
 const sampleReflections = [
@@ -47,17 +53,20 @@ const ReflectionsPage: React.FC = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<{[key: number]: string}>({});
 
-
   const [currentAnswer, setCurrentAnswer] = useState("");
   const [chatComplete, setChatComplete] = useState(false);
   const [reflectionTitle, setReflectionTitle] = useState("");
   const [reflectionSummary, setReflectionSummary] = useState("");
   const [showSummaryInput, setShowSummaryInput] = useState(false);
 
+  // States for reflection questions management
+  const [reflectionQuestions, setReflectionQuestions] = useState<ReflectionQuestion[]>([]);
+  const [newQuestion, setNewQuestion] = useState("");
+
   // Get current date for comparison
   const now = new Date();
 
- // Filter reflections by time period
+  // Filter reflections by time period
   const pastSevenDays = reflections.filter((reflection) => {
     const diffTime = Math.abs(now.getTime() - reflection.date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -78,7 +87,7 @@ const ReflectionsPage: React.FC = () => {
   
   const pinnedReflections: Reflection[] = reflections.filter((reflection: Reflection) => reflection.pinned);
 
-  const deleteReflectionHandler = async (id: string, e: React.MouseEvent<HTMLButtonElement>) => { // Pe218
+  const deleteReflectionHandler = async (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e?.stopPropagation();
     await deleteReflection('userId', id); // Replace 'userId' with actual user ID
     setReflections(reflections.filter((reflection: Reflection) => reflection.id !== id));
@@ -87,7 +96,7 @@ const ReflectionsPage: React.FC = () => {
     }
   }; 
 
-  const togglePin = (id: string, e: React.MouseEvent<HTMLButtonElement>) => { //fix
+  const togglePin = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     setReflections(reflections.map((reflection: Reflection) => 
       reflection.id === id ? {...reflection, pinned: !reflection.pinned} : reflection
@@ -145,7 +154,7 @@ const ReflectionsPage: React.FC = () => {
     }
   };
 
-  const saveReflection = async () => { // Pc233
+  const saveReflection = async () => {
     const newReflection = {
       id: Date.now().toString(),
       title: reflectionTitle,
@@ -197,7 +206,23 @@ const ReflectionsPage: React.FC = () => {
     return insights.length > 0 ? insights : ["Reflecting regularly helps build self-awareness"];
   };
 
-  useEffect(() => { // P127e
+  const addReflectionQuestion = async () => {
+    if (newQuestion.trim() === "") return;
+    const newQuestionObj = {
+      id: Date.now().toString(),
+      question: newQuestion
+    };
+    await createReflectionQuestion('userId', [newQuestion]); // Replace 'userId' with actual user ID
+    setReflectionQuestions([...reflectionQuestions, newQuestionObj]);
+    setNewQuestion("");
+  };
+
+  const deleteReflectionQuestionHandler = async (id: string) => {
+    await deleteReflectionQuestion('userId', id); // Replace 'userId' with actual user ID
+    setReflectionQuestions(reflectionQuestions.filter((question: ReflectionQuestion) => question.id !== id));
+  };
+
+  useEffect(() => {
     const fetchReflections = async () => {
       const reflectionsList = await readReflections('userId'); // Replace 'userId' with actual user ID
       setReflections(reflectionsList.map(reflection => ({
@@ -206,7 +231,16 @@ const ReflectionsPage: React.FC = () => {
       })));
     };
 
+    const fetchReflectionQuestions = async () => {
+      const questionsList = await readReflectionQuestions('userId'); // Replace 'userId' with actual user ID
+      setReflectionQuestions(questionsList.map(question => ({
+        id: question.id,
+        question: question.questions[0]
+      })));
+    };
+
     fetchReflections();
+    fetchReflectionQuestions();
   }, []);
 
   return (
@@ -223,8 +257,44 @@ const ReflectionsPage: React.FC = () => {
           </button>
         </div>
       </div>
-      
+
       <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="mb-12">
+          <h2 className="text-xl font-medium text-gray-900 mb-6">Reflection Questions</h2>
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="divide-y divide-gray-100">
+              {reflectionQuestions.map((question) => (
+                <div key={question.id} className="p-4 hover:bg-gray-50 transition-colors flex justify-between items-center">
+                  <div>
+                    <p className="text-gray-700">{question.question}</p>
+                  </div>
+                  <button
+                    onClick={() => deleteReflectionQuestionHandler(question.id)}
+                    className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center">
+              <input
+                type="text"
+                value={newQuestion}
+                onChange={(e) => setNewQuestion(e.target.value)}
+                placeholder="Add a new question..."
+                className="flex-1 px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                onClick={addReflectionQuestion}
+                className="ml-3 bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="mb-12">
           <h2 className="text-xl font-medium text-gray-900 mb-6">Pinned Insights</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -237,7 +307,7 @@ const ReflectionsPage: React.FC = () => {
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-medium text-gray-900">{reflection.title}</h3>
                   <div className="flex space-x-2">
-                    <button //fix
+                    <button
                       onClick={(e: React.MouseEvent<HTMLButtonElement>) => togglePin(reflection.id, e)}
                       className="text-blue-500 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-blue-50"
                     >
@@ -276,7 +346,7 @@ const ReflectionsPage: React.FC = () => {
                     <p className="text-sm text-gray-600 mt-1 line-clamp-1">{reflection.summary}</p>
                   </div>
                   <div className="flex items-start ml-4 space-x-2">
-                    <button //fix
+                    <button
                       onClick={(e: React.MouseEvent<HTMLButtonElement>) => togglePin(reflection.id, e)}
                       className="text-gray-400 hover:text-blue-500 transition-colors p-1 rounded-full hover:bg-blue-50"
                     >
@@ -313,7 +383,7 @@ const ReflectionsPage: React.FC = () => {
                     <p className="text-sm text-gray-600 mt-1 line-clamp-1">{reflection.summary}</p>
                   </div>
                   <div className="flex items-start ml-4 space-x-2">
-                    <button //fix
+                    <button
                       onClick={(e: React.MouseEvent<HTMLButtonElement>) => togglePin(reflection.id, e)}
                       className="text-gray-400 hover:text-blue-500 transition-colors p-1 rounded-full hover:bg-blue-50"
                     >
@@ -350,7 +420,7 @@ const ReflectionsPage: React.FC = () => {
                     <p className="text-sm text-gray-600 mt-1 line-clamp-1">{reflection.summary}</p>
                   </div>
                   <div className="flex items-start ml-4 space-x-2">
-                    <button //fix
+                    <button
                       onClick={(e: React.MouseEvent<HTMLButtonElement>) => togglePin(reflection.id, e)}
                       className="text-gray-400 hover:text-blue-500 transition-colors p-1 rounded-full hover:bg-blue-50"
                     >
@@ -387,7 +457,7 @@ const ReflectionsPage: React.FC = () => {
               <p className="text-gray-700">{selectedReflection.summary}</p>
               
               <div className="mt-8 flex justify-end space-x-3">
-                <button //fix
+                <button
                   onClick={(e: React.MouseEvent<HTMLButtonElement>) => togglePin(selectedReflection.id, e)}
                   className={`flex items-center px-4 py-2 rounded-full text-sm font-medium ${selectedReflection.pinned ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'} transition-colors`}
                 >
