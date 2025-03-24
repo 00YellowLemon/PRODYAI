@@ -107,10 +107,10 @@ const TaskManagementPage: React.FC = () => {
     const longTermGoals = await readLongTermGoalsTask(user.uid);
     const formattedTasks: TaskLists = {
       longTermGoals: longTermGoals.map(goal => ({ id: goal.id, content: goal.title })),
-      highUrgentHighImportant: tasks.filter(task => task.listId === 'highUrgentHighImportant'),
-      highImportantLowUrgent: tasks.filter(task => task.listId === 'highImportantLowUrgent'),
-      highUrgentLowImportant: tasks.filter(task => task.listId === 'highUrgentLowImportant'),
-      lowUrgentLowImportant: tasks.filter(task => task.listId === 'lowUrgentLowImportant'),
+      highUrgentHighImportant: tasks.filter(task => task.importance && task.urgency),
+      highImportantLowUrgent: tasks.filter(task => task.importance && !task.urgency),
+      highUrgentLowImportant: tasks.filter(task => !task.importance && task.urgency),
+      lowUrgentLowImportant: tasks.filter(task => !task.importance && !task.urgency),
     };
     setData(formattedTasks);
   };
