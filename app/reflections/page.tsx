@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Lightbulb } from 'lucide-react';
 import { createReflection, readReflections, deleteReflection } from '../../lib/reflections_firestore';
 import { createReflectionQuestion, readReflectionQuestions, deleteReflectionQuestion } from '../../lib/reflectionQuestions_firestore';
 import ReflectionModal from '../../components/ReflectionModal';
@@ -142,6 +142,7 @@ const ReflectionsPage: React.FC = () => {
                 onChange={(e) => setNewQuestion(e.target.value)}
                 placeholder="Add a new question..."
                 className="flex-1 px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onKeyDown={(e) => e.key === 'Enter' && addReflectionQuestion()}
               />
               <button
                 onClick={addReflectionQuestion}

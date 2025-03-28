@@ -4,10 +4,10 @@ import { getFirestore, collection, doc, setDoc, getDocs, updateDoc, deleteDoc, T
 const db = getFirestore();
 
 // Function to create a reflection question
-export const createReflectionQuestion = async (userId: string, questions: string[]) => {
+export const createReflectionQuestion = async (userId: string, question: string) => {
   const reflectionQuestionRef = doc(collection(db, `users/${userId}/reflectionQuestions`));
   const reflectionQuestionData = {
-    questions,
+    question,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   };
@@ -18,15 +18,19 @@ export const createReflectionQuestion = async (userId: string, questions: string
 // Function to read reflection questions
 export const readReflectionQuestions = async (userId: string) => {
   const reflectionQuestionsSnapshot = await getDocs(collection(db, `users/${userId}/reflectionQuestions`));
-  const reflectionQuestionsList = reflectionQuestionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const reflectionQuestionsList = reflectionQuestionsSnapshot.docs.map(doc => ({ 
+    id: doc.id, 
+    question: doc.data().question,
+    ...doc.data() 
+  }));
   return reflectionQuestionsList;
 };
 
 // Function to update a reflection question
-export const updateReflectionQuestion = async (userId: string, reflectionQuestionId: string, questions: string[]) => {
+export const updateReflectionQuestion = async (userId: string, reflectionQuestionId: string, question: string) => {
   const reflectionQuestionRef = doc(db, `users/${userId}/reflectionQuestions`, reflectionQuestionId);
   await updateDoc(reflectionQuestionRef, {
-    questions,
+    question,
     updatedAt: Timestamp.now(),
   });
 };
