@@ -1,17 +1,32 @@
-import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, Timestamp } from "firebase/firestore";
-import { createReflectionQuestion, readReflectionQuestions, updateReflectionQuestion, deleteReflectionQuestion } from "./reflectionQuestions_firestore";
+import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, Timestamp, query, orderBy } from "firebase/firestore";
 
-// Initialize Firestore
 const db = getFirestore();
 
-// Function to create a reflection
-export const createReflection = async (userId: string, title: string, summary: string, insight: string, questions: Array<{ question: string, answer: string }>) => {
+export interface ReflectionQuestionAnswer {
+  question: string;
+  answer: string;
+}
+
+export interface ReflectionInsight {
+  thinking: string;
+  blindspot: string;
+  growth: string;
+  action: string;
+}
+
+export const createReflection = async (
+  userId: string,
+  title: string,
+  summary: string,
+  questionsAnswers: ReflectionQuestionAnswer[],
+  insights: ReflectionInsight[] = []
+) => {
   const reflectionRef = doc(collection(db, `users/${userId}/reflections`));
   const reflectionData = {
     title,
     summary,
-    insight,
-    questions,
+    questionsAnswers,
+    insights,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   };
@@ -19,17 +34,22 @@ export const createReflection = async (userId: string, title: string, summary: s
   return reflectionRef.id;
 };
 
-// Function to read reflections
 export const readReflections = async (userId: string) => {
-  const reflectionsSnapshot = await getDocs(collection(db, `users/${userId}/reflections`));
-  const reflectionsList = reflectionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  return reflectionsList;
+  const reflectionsRef = collection(db, `users/${userId}/reflections`);
+  const q = query(reflectionsRef, orderBy("createdAt", "desc"));
+  const reflectionsSnapshot = await getDocs(q);
+  
+  return reflectionsSnapshot.docs.map(doc => ({
+    id: doc.id,
+    title: doc.data().title,
+    summary: doc.data().summary,
+    questionsAnswers: doc.data().questionsAnswers || [],
+    insights: doc.data().insights || [],
+    createdAt: doc.data().createdAt,
+  }));
 };
 
-// Function to delete a reflection
 export const deleteReflection = async (userId: string, reflectionId: string) => {
   const reflectionRef = doc(db, `users/${userId}/reflections`, reflectionId);
   await deleteDoc(reflectionRef);
 };
-
-export { createReflectionQuestion, readReflectionQuestions, updateReflectionQuestion, deleteReflectionQuestion };
