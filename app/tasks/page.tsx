@@ -7,11 +7,25 @@ import { useAuth } from '../../components/authcontext';
 
 interface Task {
   id: string;
-  content: string;
+  title: string;
+  description?: string;
+  importance: boolean;
+  urgency: boolean;
+  completed?: boolean;
+  dueDate?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+interface LongTermGoal extends Task {
+  startDate?: Date;
+  endDate?: Date;
+  progress?: number;
+  categories?: string[];
 }
 
 interface TaskLists {
-  longTermGoals: Task[];
+  longTermGoals: LongTermGoal[];
   highUrgentHighImportant: Task[];
   highImportantLowUrgent: Task[];
   highUrgentLowImportant: Task[];
@@ -37,7 +51,7 @@ interface ShowInputsState {
 interface ColorScheme {
   border: string;
   bg: string;
- hover: string;
+  hover: string;
   light: string;
 }
 
@@ -51,31 +65,15 @@ interface ColorSchemes {
 
 type ListId = keyof TaskLists;
 
-const initialData: TaskLists = {
-  longTermGoals: [
-    { id: 'goal-1', content: 'Complete master\'s degree' },
-    { id: 'goal-2', content: 'Launch personal portfolio website' }
-  ],
-  highUrgentHighImportant: [
-    { id: 'task-1', content: 'Finish quarterly report' },
-    { id: 'task-2', content: 'Prepare for client meeting' }
-  ],
-  highImportantLowUrgent: [
-    { id: 'task-3', content: 'Research new technologies' },
-    { id: 'task-4', content: 'Plan team building activities' }
-  ],
-  highUrgentLowImportant: [
-    { id: 'task-5', content: 'Respond to emails' },
-    { id: 'task-6', content: 'Schedule social media posts' }
-  ],
-  lowUrgentLowImportant: [
-    { id: 'task-7', content: 'Clean up desktop files' },
-    { id: 'task-8', content: 'Update software' }
-  ]
-};
-
 const TaskManagementPage: React.FC = () => {
-  const [data, setData] = useState<TaskLists>(initialData);
+  const [data, setData] = useState<TaskLists>({
+    longTermGoals: [],
+    highUrgentHighImportant: [],
+    highImportantLowUrgent: [],
+    highUrgentLowImportant: [],
+    lowUrgentLowImportant: [],
+  });
+  
   const [newTaskContents, setNewTaskContents] = useState<TaskInputs>({
     longTermGoals: '',
     highUrgentHighImportant: '',
@@ -83,6 +81,7 @@ const TaskManagementPage: React.FC = () => {
     highUrgentLowImportant: '',
     lowUrgentLowImportant: '',
   });
+  
   const [showInputs, setShowInputs] = useState<ShowInputsState>({
     longTermGoals: false,
     highUrgentHighImportant: false,
@@ -90,6 +89,7 @@ const TaskManagementPage: React.FC = () => {
     highUrgentLowImportant: false,
     lowUrgentLowImportant: false,
   });
+  
   const [draggedItem, setDraggedItem] = useState<Task | null>(null);
   const [dragSourceList, setDragSourceList] = useState<ListId | null>(null);
   const { user } = useAuth();
@@ -102,17 +102,55 @@ const TaskManagementPage: React.FC = () => {
 
   const fetchTasks = async () => {
     if (!user) return;
-    const tasks = await readTasks(user.uid);
-    console.log("Fetched tasks:", tasks);
-    const longTermGoals = await readLongTermGoalsTask(user.uid);
-    const formattedTasks: TaskLists = {
-      longTermGoals: longTermGoals.map(goal => ({ id: goal.id, content: goal.title })),
-      highUrgentHighImportant: tasks.filter(task => task.importance && task.urgency),
-      highImportantLowUrgent: tasks.filter(task => task.importance && !task.urgency),
-      highUrgentLowImportant: tasks.filter(task => !task.importance && task.urgency),
-      lowUrgentLowImportant: tasks.filter(task => !task.importance && !task.urgency),
-    };
-    setData(formattedTasks);
+    try {
+      const [tasks, longTermGoals] = await Promise.all([
+        readTasks(user.uid),
+        readLongTermGoalsTask(user.uid)
+      ]);
+
+      // Map Firestore task documents to our Task interface
+      const mapTask = (task: any): Task => ({
+        id: task.id,
+        title: task.title || 'Untitled Task',
+        description: task.description,
+        importance: Boolean(task.importance),
+        urgency: Boolean(task.urgency),
+        completed: task.completed || false,
+        dueDate: task.dueDate?.toDate?.(),
+        createdAt: task.createdAt?.toDate?.(),
+        updatedAt: task.updatedAt?.toDate?.()
+      });
+
+      // Map long-term goals (unchanged from original)
+      const mappedLongTermGoals = longTermGoals.map(goal => ({
+        id: goal.id,
+        title: goal.title,
+        importance: true,
+        urgency: false,
+        startDate: goal.startDate?.toDate?.(),
+        endDate: goal.endDate?.toDate?.(),
+        progress: goal.progress,
+        categories: goal.categories
+      }));
+
+      setData({
+        longTermGoals: mappedLongTermGoals,
+        highUrgentHighImportant: tasks
+          .filter(t => t.importance && t.urgency)
+          .map(mapTask),
+        highImportantLowUrgent: tasks
+          .filter(t => t.importance && !t.urgency)
+          .map(mapTask),
+        highUrgentLowImportant: tasks
+          .filter(t => !t.importance && t.urgency)
+          .map(mapTask),
+        lowUrgentLowImportant: tasks
+          .filter(t => !t.importance && !t.urgency)
+          .map(mapTask)
+      });
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    }
   };
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: Task, listId: ListId): void => {
@@ -137,28 +175,29 @@ const TaskManagementPage: React.FC = () => {
     }
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, listId: ListId): void => {
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>, listId: ListId): Promise<void> => {
     e.preventDefault();
     
-    if (!draggedItem || dragSourceList === null) return;
+    if (!draggedItem || dragSourceList === null || !user) return;
     
-    if (listId === 'longTermGoals' && dragSourceList !== 'longTermGoals') {
+    // Don't allow moving to/from longTermGoals
+    if (listId === 'longTermGoals' || dragSourceList === 'longTermGoals') {
       return;
     }
     
-    if (listId === dragSourceList) {
-    } else {
-      const newSourceList = data[dragSourceList].filter(
-        item => item.id !== draggedItem.id
-      );
+    if (listId !== dragSourceList) {
+      const importance = listId === 'highUrgentHighImportant' || listId === 'highImportantLowUrgent';
+      const urgency = listId === 'highUrgentHighImportant' || listId === 'highUrgentLowImportant';
       
-      const newDestList = [...data[listId], draggedItem];
-      
-      setData(prev => ({
-        ...prev,
-        [dragSourceList]: newSourceList,
-        [listId]: newDestList
-      }));
+      try {
+        await updateTask(user.uid, draggedItem.id, {
+          importance,
+          urgency
+        });
+        await fetchTasks();
+      } catch (error) {
+        console.error("Error updating task:", error);
+      }
     }
     
     setDraggedItem(null);
@@ -166,50 +205,52 @@ const TaskManagementPage: React.FC = () => {
   };
 
   const addNewTask = async (listId: ListId): Promise<void> => {
-    if (!newTaskContents[listId].trim() || !user) return;
+    const content = newTaskContents[listId].trim();
+    if (!content || !user) return;
     
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      content: newTaskContents[listId]
-    };
-
-    let taskId;
-    if (listId === 'longTermGoals') {
-      taskId = await createLongTermGoalTask(user.uid, newTask.content, new Date(), new Date(), 0, []);
-    } else {
-      taskId = await createTask(user.uid, newTask.content, '', false, false);
+    try {
+      if (listId === 'longTermGoals') {
+        await createLongTermGoalTask(
+          user.uid, 
+          content, 
+          new Date(), 
+          new Date(), 
+          0, 
+          []
+        );
+      } else {
+        const importance = listId === 'highUrgentHighImportant' || listId === 'highImportantLowUrgent';
+        const urgency = listId === 'highUrgentHighImportant' || listId === 'highUrgentLowImportant';
+        
+        await createTask(
+          user.uid, 
+          content, 
+          '', 
+          importance, 
+          urgency
+        );
+      }
+      
+      await fetchTasks();
+      setNewTaskContents(prev => ({ ...prev, [listId]: '' }));
+      setShowInputs(prev => ({ ...prev, [listId]: false }));
+    } catch (error) {
+      console.error("Error creating task:", error);
     }
-
-    console.log("Adding new task:", newTask);
-
-    setData(prev => ({
-      ...prev,
-      [listId]: [...prev[listId], { ...newTask, id: taskId }]
-    }));
-
-    setNewTaskContents(prev => ({
-      ...prev,
-      [listId]: ''
-    }));
-
-    setShowInputs(prev => ({
-      ...prev,
-      [listId]: false
-    }));
   };
 
   const removeTask = async (listId: ListId, taskId: string): Promise<void> => {
     if (!user) return;
-    if (listId === 'longTermGoals') {
-      await deleteLongTermGoalTask(user.uid, taskId);
-    } else {
-      await deleteTask(user.uid, taskId);
+    try {
+      if (listId === 'longTermGoals') {
+        await deleteLongTermGoalTask(user.uid, taskId);
+      } else {
+        await deleteTask(user.uid, taskId);
+      }
+      await fetchTasks();
+    } catch (error) {
+      console.error("Error deleting task:", error);
     }
-    console.log("Removing task with ID:", taskId);
-    setData(prev => ({
-      ...prev,
-      [listId]: prev[listId].filter(task => task.id !== taskId)
-    }));
   };
 
   const toggleInput = (listId: ListId): void => {
@@ -260,6 +301,8 @@ const TaskManagementPage: React.FC = () => {
 
   const renderTaskList = (listId: ListId, title: string) => {
     const colors = listColors[listId];
+    const tasks = data[listId];
+    const isEmpty = tasks.length === 0;
     
     return (
       <div 
@@ -299,19 +342,19 @@ const TaskManagementPage: React.FC = () => {
         )}
 
         <div className="min-h-32">
-          {data[listId].map((item) => (
+          {tasks.map((task) => (
             <div
-              key={item.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, item, listId)}
+              key={task.id}
+              draggable={listId !== 'longTermGoals'}
+              onDragStart={(e) => handleDragStart(e, task, listId)}
               className={`p-4 mb-2 rounded-lg bg-gray-50 border border-gray-200 group flex justify-between items-center cursor-move hover:shadow-sm transition-all`}
             >
               <div className="flex items-center flex-1">
                 <GripVertical size={18} className="mr-3 text-gray-400" />
-                <p className="text-gray-800">{item.content}</p>
+                <p className="text-gray-800">{task.title}</p>
               </div>
               <button 
-                onClick={() => removeTask(listId, item.id)}
+                onClick={() => removeTask(listId, task.id)}
                 className="opacity-0 group-hover:opacity-100 transition-opacity"
                 aria-label="Remove task"
               >
@@ -319,7 +362,8 @@ const TaskManagementPage: React.FC = () => {
               </button>
             </div>
           ))}
-          {data[listId].length === 0 && (
+          
+          {isEmpty && (
             <div className="flex flex-col items-center justify-center py-8 text-gray-400">
               <MoveVertical size={24} className="mb-2" />
               <p>Drag tasks here</p>
