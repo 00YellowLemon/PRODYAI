@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { createReflection, readReflections, deleteReflection } from '../../lib/reflections_firestore';
 import { createReflectionQuestion, readReflectionQuestions, deleteReflectionQuestion } from '../../lib/reflectionQuestions_firestore';
 import ReflectionModal from '../../components/ReflectionModal';

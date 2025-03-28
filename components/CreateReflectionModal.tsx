@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
-import { generateInsights } from '../services/apiService';
+import { getReflectionInsights } from '../services/apiService';
 
 interface CreateReflectionModalProps {
   isOpen: boolean;
@@ -37,7 +37,7 @@ const CreateReflectionModal: React.FC<CreateReflectionModalProps> = ({
       ).join('\n\n');
       
       // Generate insights
-      const { insights } = await generateInsights(reflectionText);
+      const { insights } = await getReflectionInsights(reflectionText);
       
       // Prepare Q&A pairs
       const questionsAnswers = selectedQuestions.map(q => ({

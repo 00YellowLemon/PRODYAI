@@ -1,4 +1,4 @@
-import { X, Trash2, Lightbulb } from 'lucide-react';
+import { X, Lightbulb, Trash2 as Trash2Icon } from 'lucide-react';
 import { ReflectionQuestionAnswer, ReflectionInsight } from '../lib/types';
 
 interface ReflectionModalProps {
@@ -94,7 +94,7 @@ const ReflectionModal: React.FC<ReflectionModalProps> = ({ reflection, onClose, 
             onClick={() => onDelete(reflection.id)}
             className="flex items-center px-4 py-2 rounded-full bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition-colors"
           >
-            <Trash2 size={16} className="mr-1" />
+            <Trash2Icon size={16} className="mr-1" />
             Delete
           </button>
         </div>
