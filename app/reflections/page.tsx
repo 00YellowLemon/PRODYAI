@@ -1,11 +1,10 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Lightbulb } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus, Trash2, Lightbulb, MessageSquare } from 'lucide-react';
 import { createReflection, readReflections, deleteReflection } from '../../lib/reflections_firestore';
 import { createReflectionQuestion, readReflectionQuestions, deleteReflectionQuestion } from '../../lib/reflectionQuestions_firestore';
-import ReflectionModal from '../../components/ReflectionModal';
-import CreateReflectionModal from '../../components/CreateReflectionModal';
 import { ReflectionQuestionAnswer, ReflectionInsight } from '../../lib/types';
 
 interface ReflectionQuestion {
@@ -14,6 +13,7 @@ interface ReflectionQuestion {
 }
 
 const ReflectionsPage: React.FC = () => {
+  const router = useRouter();
   const [reflections, setReflections] = useState<{
     id: string;
     title: string;
@@ -91,6 +91,10 @@ const ReflectionsPage: React.FC = () => {
     }
   };
 
+  const navigateToChatReflection = () => {
+    router.push('/reflections/chat');
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -106,15 +110,17 @@ const ReflectionsPage: React.FC = () => {
   return (
     <div className="bg-white min-h-screen">
       <div className="bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-6 py-8 flex justify-between items-center">
+        <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <h1 className="text-3xl font-medium text-gray-900">Reflections</h1>
-          <button 
-            onClick={() => setIsCreateModalOpen(true)}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-200 flex items-center"
-          >
-            <Plus size={18} className="mr-1" />
-            New Reflection
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button 
+              onClick={navigateToChatReflection}
+              className="bg-indigo-500 hover:bg-indigo-600 text-white font-medium px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+            >
+              <MessageSquare size={18} className="mr-1" />
+              Reflect Now
+            </button>
+          </div>
         </div>
       </div>
 
@@ -157,49 +163,49 @@ const ReflectionsPage: React.FC = () => {
         <div className="mb-10">
           <h2 className="text-xl font-medium text-gray-900 mb-4">Your Reflections</h2>
           <div className="space-y-4">
-            {reflections.map(reflection => (
-              <div 
-                key={reflection.id}
-                className="bg-gray-50 rounded-2xl p-4 cursor-pointer hover:bg-gray-100 transition-all duration-200"
-                onClick={() => setSelectedReflection(reflection)}
-              >
-                <div className="flex items-baseline justify-between">
-                  <h3 className="font-medium text-gray-900">{reflection.title}</h3>
-                  <span className="text-xs text-gray-400">
-                    {reflection.createdAt.toDate().toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{reflection.summary}</p>
-                {reflection.insights.length > 0 && (
-                  <div className="mt-2 flex items-center text-xs text-yellow-600">
-                    <Lightbulb size={14} className="mr-1" />
-                    {reflection.insights.length} AI Insight{reflection.insights.length !== 1 ? 's' : ''}
+            {reflections.length > 0 ? (
+              reflections.map(reflection => (
+                <div 
+                  key={reflection.id}
+                  className="bg-gray-50 rounded-2xl p-4 cursor-pointer hover:bg-gray-100 transition-all duration-200"
+                  onClick={() => setSelectedReflection(reflection)}
+                >
+                  <div className="flex items-baseline justify-between">
+                    <h3 className="font-medium text-gray-900">{reflection.title}</h3>
+                    <span className="text-xs text-gray-400">
+                      {reflection.createdAt.toDate().toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </span>
                   </div>
-                )}
+                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{reflection.summary}</p>
+                  {reflection.insights.length > 0 && (
+                    <div className="mt-2 flex items-center text-xs text-yellow-600">
+                      <Lightbulb size={14} className="mr-1" />
+                      {reflection.insights.length} AI Insight{reflection.insights.length !== 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="bg-gray-50 rounded-2xl p-6 text-center">
+                <p className="text-gray-500 mb-4">You haven't created any reflections yet.</p>
+                <button 
+                  onClick={navigateToChatReflection}
+                  className="bg-indigo-500 hover:bg-indigo-600 text-white font-medium px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-200 inline-flex items-center"
+                >
+                  <MessageSquare size={18} className="mr-1" />
+                  Start Your First Reflection
+                </button>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
 
-      {selectedReflection && (
-        <ReflectionModal
-          reflection={selectedReflection}
-          onClose={() => setSelectedReflection(null)}
-          onDelete={deleteReflectionHandler}
-        />
-      )}
-
-      <CreateReflectionModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSave={handleCreateReflection}
-        availableQuestions={reflectionQuestions}
-      />
+      
     </div>
   );
 };

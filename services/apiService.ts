@@ -87,7 +87,6 @@ export const checkApiHealth = async (): Promise<{ status: string }> => {
   try {
     const response = await fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
-      timeout: 5000,
     });
 
     if (!response.ok) {

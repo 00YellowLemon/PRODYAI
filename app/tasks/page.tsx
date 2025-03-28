@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, GripVertical, XCircle, MoveVertical } from 'lucide-react';
 import { createTask, readTasks, updateTask, deleteTask, createLongTermGoalTask, readLongTermGoalsTask, deleteLongTermGoalTask } from '../../lib/tasks_firestore';
 import { useAuth } from '../../components/authcontext';
+import { Timestamp } from 'firebase/firestore';
 
 interface Task {
   id: string;
@@ -17,11 +18,15 @@ interface Task {
   updatedAt?: Date;
 }
 
-interface LongTermGoal extends Task {
+interface LongTermGoal {
+  id: string;
+  title: string;
   startDate?: Date;
   endDate?: Date;
   progress?: number;
   categories?: string[];
+  importance: boolean;
+  urgency: boolean;
 }
 
 interface TaskLists {
@@ -64,6 +69,7 @@ interface ColorSchemes {
 }
 
 type ListId = keyof TaskLists;
+type DragItem = Task | LongTermGoal;
 
 const TaskManagementPage: React.FC = () => {
   const [data, setData] = useState<TaskLists>({
@@ -90,7 +96,7 @@ const TaskManagementPage: React.FC = () => {
     lowUrgentLowImportant: false,
   });
   
-  const [draggedItem, setDraggedItem] = useState<Task | null>(null);
+  const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
   const [dragSourceList, setDragSourceList] = useState<ListId | null>(null);
   const { user } = useAuth();
 
@@ -121,31 +127,31 @@ const TaskManagementPage: React.FC = () => {
         updatedAt: task.updatedAt?.toDate?.()
       });
 
-      // Map long-term goals (unchanged from original)
-      const mappedLongTermGoals = longTermGoals.map(goal => ({
+      // Map long-term goals
+      const mappedLongTermGoals: LongTermGoal[] = longTermGoals.map((goal: any) => ({
         id: goal.id,
-        title: goal.title,
+        title: goal.title || 'Untitled Goal',
         importance: true,
         urgency: false,
         startDate: goal.startDate?.toDate?.(),
         endDate: goal.endDate?.toDate?.(),
-        progress: goal.progress,
-        categories: goal.categories
+        progress: goal.progress || 0,
+        categories: goal.categories || []
       }));
 
       setData({
         longTermGoals: mappedLongTermGoals,
         highUrgentHighImportant: tasks
-          .filter(t => t.importance && t.urgency)
+          .filter((t: any) => t.importance && t.urgency)
           .map(mapTask),
         highImportantLowUrgent: tasks
-          .filter(t => t.importance && !t.urgency)
+          .filter((t: any) => t.importance && !t.urgency)
           .map(mapTask),
         highUrgentLowImportant: tasks
-          .filter(t => !t.importance && t.urgency)
+          .filter((t: any) => !t.importance && t.urgency)
           .map(mapTask),
         lowUrgentLowImportant: tasks
-          .filter(t => !t.importance && !t.urgency)
+          .filter((t: any) => !t.importance && !t.urgency)
           .map(mapTask)
       });
     } catch (error) {
@@ -153,7 +159,7 @@ const TaskManagementPage: React.FC = () => {
     }
   };
 
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: Task, listId: ListId): void => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: DragItem, listId: ListId): void => {
     setDraggedItem(item);
     setDragSourceList(listId);
     e.dataTransfer.effectAllowed = 'move';
@@ -213,8 +219,8 @@ const TaskManagementPage: React.FC = () => {
         await createLongTermGoalTask(
           user.uid, 
           content, 
-          new Date(), 
-          new Date(), 
+          Timestamp.fromDate(new Date()), 
+          Timestamp.fromDate(new Date(new Date().setMonth(new Date().getMonth() + 3))), // Default 3 months in the future
           0, 
           []
         );
