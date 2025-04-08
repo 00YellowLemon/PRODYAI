@@ -47,8 +47,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   };
-  
-  
 
   // Email/Password sign in
   const signInWithEmail = async (email: string, password: string) => {
